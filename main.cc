@@ -8,11 +8,62 @@
 #include <iostream>
 #include <map>
 #include <regex>
+#include <sys/stat.h>
 
 using namespace muduo;
 using namespace muduo::net;
 
 bool benchmark = false;
+
+inline bool is_dir(const std::string& path)
+{
+  struct stat st;
+  return stat(path.c_str(), &st) >= 0 && S_ISDIR(st.st_mode);
+}
+
+inline bool is_file(const std::string& path)
+{
+  struct stat st;
+  return stat(path.c_str(), &st) >= 0 && S_ISREG(st.st_mode);
+}
+
+inline bool is_valid_path(const std::string& path) {
+  size_t level = 0;
+  size_t i = 0;
+
+  // Skip slash
+  while (i < path.size() && path[i] == '/') {
+    i++;
+  }
+
+  while (i < path.size()) {
+    // Read component
+    auto beg = i;
+    while (i < path.size() && path[i] != '/') {
+      i++;
+    }
+
+    auto len = i - beg;
+    assert(len > 0);
+
+    if (!path.compare(beg, len, ".")) {
+      ;
+    } else if (!path.compare(beg, len, "..")) {
+      if (level == 0) {                return false;
+      }
+      level--;
+    } else {
+      level++;
+    }
+
+    // Skip slash
+    while (i < path.size() && path[i] == '/') {
+      i++;
+    }
+  }
+
+  return true;
+}
 
 inline std::string file_extension(const std::string &path) {
   std::smatch m;
@@ -59,30 +110,36 @@ inline const char *find_content_type(const std::string &path) {
 
 void onRequest(const HttpRequest &req, HttpResponse *resp) {
   std::cout << "Headers " << req.methodString() << " " << req.path()
-            << std::endl;
+    << std::endl;
   if (!benchmark) {
     const std::map<string, string> &headers = req.headers();
     for (const auto &header : headers) {
       std::cout << header.first << ": " << header.second << std::endl;
     }
   }
-  if (req.path() == "") {
-    std::cout << "zero file" << std::endl;
-    return;
+
+  string rootDir = "./root";
+
+  if (is_dir(rootDir) &&
+      is_valid_path(req.path()) &&
+      is_file(rootDir + req.path())) {
+    resp->setStatusCode(HttpResponse::k200Ok);
+    resp->setStatusMessage("OK");
+    auto type = find_content_type(req.path());
+    resp->setContentType(type);
+    resp->addHeader("Server", "Blog");
+    string res;
+    int64_t size = 0;
+    int err = FileUtil::readFile("./root" + req.path(), 102400000, &res, &size);
+    if (err) {
+      std::cout << "read file error" << std::endl;
+    }
+    resp->setBody(res);
+  } else {
+    resp->setStatusCode(HttpResponse::k404NotFound);
+    resp->setStatusMessage("Not Found");
+    resp->setCloseConnection(true);
   }
-  resp->setStatusCode(HttpResponse::k200Ok);
-  resp->setStatusMessage("OK");
-  auto type = find_content_type(req.path());
-  std::cout << type << std::endl;
-  resp->setContentType(type);
-  resp->addHeader("Server", "Blog");
-  string res;
-  int64_t size = 0;
-  int err = FileUtil::readFile("./root" + req.path(), 102400000, &res, &size);
-  if (err) {
-    std::cout << "read file error" << std::endl;
-  }
-  resp->setBody(res);
 }
 
 int main(int argc, char *argv[]) {
