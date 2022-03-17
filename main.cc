@@ -15,19 +15,19 @@ using namespace muduo::net;
 
 bool benchmark = false;
 
-inline bool is_dir(const std::string& path)
+inline bool isDir(const string& path)
 {
   struct stat st;
   return stat(path.c_str(), &st) >= 0 && S_ISDIR(st.st_mode);
 }
 
-inline bool is_file(const std::string& path)
+inline bool isFile(const string& path)
 {
   struct stat st;
   return stat(path.c_str(), &st) >= 0 && S_ISREG(st.st_mode);
 }
 
-inline bool is_valid_path(const std::string& path) {
+inline bool isValidPath(const string& path) {
   size_t level = 0;
   size_t i = 0;
 
@@ -65,7 +65,7 @@ inline bool is_valid_path(const std::string& path) {
   return true;
 }
 
-inline std::string file_extension(const std::string &path) {
+inline string fileExtension(const string &path) {
   std::smatch m;
   auto pat = std::regex("\\.([a-zA-Z0-9]+)$");
   if (std::regex_search(path, m, pat)) {
@@ -74,8 +74,8 @@ inline std::string file_extension(const std::string &path) {
   return std::string();
 }
 
-inline const char *find_content_type(const std::string &path) {
-  auto ext = file_extension(path);
+inline const char *findContentType(const string &path) {
+  auto ext = fileExtension(path);
   if (ext == "txt") {
     return "text/plain";
   } else if (ext == "html") {
@@ -119,18 +119,20 @@ void onRequest(const HttpRequest &req, HttpResponse *resp) {
   }
 
   string rootDir = "./root";
+  string path = rootDir + req.path();
 
-  if (is_dir(rootDir) &&
-      is_valid_path(req.path()) &&
-      is_file(rootDir + req.path())) {
+  if (isDir(rootDir) &&
+      isValidPath(req.path()) &&
+      isFile(path)) {
     resp->setStatusCode(HttpResponse::k200Ok);
     resp->setStatusMessage("OK");
-    auto type = find_content_type(req.path());
+    auto type = findContentType(path);
     resp->setContentType(type);
     resp->addHeader("Server", "Blog");
     string res;
-    int64_t size = 0;
-    int err = FileUtil::readFile("./root" + req.path(), 102400000, &res, &size);
+    struct stat st;
+    stat(path.c_str(), &st);
+    int err = FileUtil::readFile(path, 102400000, &res, &st.st_size);
     if (err) {
       std::cout << "read file error" << std::endl;
     }
