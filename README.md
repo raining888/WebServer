@@ -6,7 +6,7 @@ A tiny WebServer based on Muduo.
 
 ## Todo
 
-Maybe I could code like Muduo one day.
+I wish I could code like Muduo one day.
 
 ## For debug
 
