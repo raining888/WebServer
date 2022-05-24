@@ -4,10 +4,6 @@
 
 A tiny WebServer based on Muduo.
 
-## Todo
-
-By myself.
-
 ## For debug
 
 - ubuntu
