@@ -184,7 +184,7 @@ void Thread::start()
   }
   else
   {
-    latch_.wait();
+    latch_.wait();  // why CountDownLatch? https://www.zhihu.com/question/294270506/answer/489820748
     assert(tid_ > 0);
   }
 }
